@@ -1,0 +1,164 @@
+%% Assignment - 5
+% Question: 06 Computer Assignment
+% Prepared By: Parveen Bajaj, EET182574
+
+%***************************************************************************************
+clc, clear all, close('all');
+
+%% Load the voice recorded file
+speech_file = input('Enter speech file:', 's');
+%[speech,fs] = audioread(speech_file);
+[speech,fs,bits] = wavread(speech_file);
+%% Display the signal
+figure(1),plot([1:size(speech)]/fs,speech); 
+title(speech_file);
+ylabel('Amplitude');
+xlabel('Time(sec)');
+
+%% Resample the signal from 16 khz to 8 khz
+resampled_speech = speech(1:2:end);
+new_fs = fs/2;
+figure,plot([1:size(resampled_speech)]/new_fs,resampled_speech);
+title('Resampled Speech Signal at 8 KHz');
+ylabel('Amplitude');
+xlabel('Time(sec)');
+
+%% Extract digit 1 segment from speech signal
+digit_1 = resampled_speech(29280:32670);
+figure, plot(digit_1);title('digit\_1'),xlabel('Samples'),ylabel('Amplitude');
+
+%% Get Frames of 22.5 msec = 22.5 * 8 = 180 samples
+FrameDurInTime = 22.5;
+NoOfSamples = FrameDurInTime * 10^-3 * new_fs; % 10^-3 is for msec
+Frames = buffer(digit_1,NoOfSamples);
+
+%% Energy in each frame
+Energy =sum(Frames.^2,1);
+figure,stem(Energy);title('Energy in each frame of digit-1'),xlabel('Frame Number'),ylabel('Energy');
+
+%% Select 04 frames of 22.5 msec (22.5 * 8 = 180 samples) from Voiced segments of recorded speech for digit_1 at 8 KHz
+% Will chose frame number 4,5,6,7
+SelectedFrames = Frames(:,[4,5,6,7]);
+
+figure, plot(SelectedFrames(:,1)), title('Frame-4 of digit-1');
+figure, plot(SelectedFrames(:,2)), title('Frame-5 of digit-1');
+figure, plot(SelectedFrames(:,3)), title('Frame-6 of digit-1');
+figure, plot(SelectedFrames(:,4)), title('Frame-7 of digit-1');
+
+%% Mimicking LPC-10: Obtain the parameter values that are computed (and
+% transmitted after quantization) by the LPC-l0 vocoder. Note that there is no need to
+% quantize the parameters.
+
+temp = digit_1(4*180+1:8*180); % For frames-4,5,6,7
+
+% Delays for Avg Mag Diff Fun
+t1=linspace(20,39,20);
+t2=linspace(40,78,20);
+t3=linspace(80,156,20);
+t=[t1 t2 t3];
+
+AvgMagDiffFun = zeros(1,156);
+Pitch = [];
+for i=1:length(t)
+    prt=0;
+    for n=1:130
+        prt= prt+abs(temp(n)-temp(n+t(i)));
+    end
+    AvgMagDiffFun(t(i))=prt;
+    Pitch = [Pitch prt];
+end
+
+%% Computation of Linear Predictive Coding , LPC-10, coefficients and Reflection
+%% coefficients, Gain for each Frame
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% For Frame-4
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+P=10;
+RMS=sqrt(mean(sum(SelectedFrames(:,1).^2))); 
+[Coefficents,Var]=lpc(SelectedFrames(:,1),P); % LPC Coefficients
+k = poly2rc(Coefficents); % Reflection Coefficients
+
+% Get P(z) and Q(z) using A(z) which is having coefficents in variable
+% Coefficents.
+
+LSF = poly2lsf(Coefficents);
+LSF_hz= (LSF*new_fs)/(2*pi);% LSF's in Hz
+
+bz = Coefficents(end:-1:1);
+
+az = [Coefficents 0];
+bz = [0 bz];
+Pz = az+bz;
+Qz = az-bz;
+
+figure,zplane(Pz,Qz);legend('Roots of P(Z)','Roots of Q(Z)');title('Roots of P(z) & Q(z) of digit one Frame 4');
+
+b = [1];
+[h,freq]=freqz(b,az,4000,new_fs);
+h = 20*log10(h);
+value_lsf=h(ceil(LSF_hz));
+ 
+figure;plot(freq,h,'k');hold on;
+stem(LSF_hz,value_lsf,'k');
+xlabel('Frequency in Hz');
+ylabel('Log-Magnitude in dB of digit four');
+title('Log-Magnitude in dB & LSFs of digit one Frame 4');
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% For Frame-5
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+temp = digit_1(5*180+1:9*180); % For frames-4,5,6,7
+
+% Delays for Avg Mag Diff Fun
+t1=linspace(20,39,20);
+t2=linspace(40,78,20);
+t3=linspace(80,156,20);
+t=[t1 t2 t3];
+
+AvgMagDiffFun = zeros(1,156);
+Pitch = [];
+for i=1:length(t)
+    prt=0;
+    for n=1:130
+        prt= prt+abs(temp(n)-temp(n+t(i)));
+    end
+    AvgMagDiffFun(t(i))=prt;
+    Pitch = [Pitch prt];
+end
+
+%% Computation of Linear Predictive Coding , LPC-10, coefficients and Reflection
+%% coefficients, Gain for each Frame
+
+% For Frame-4
+P=10;
+RMS=sqrt(mean(sum(SelectedFrames(:,1).^2))); 
+[Coefficents,Var]=lpc(SelectedFrames(:,1),P); % LPC Coefficients
+k = poly2rc(Coefficents); % Reflection Coefficients
+
+% Get P(z) and Q(z) using A(z) which is having coefficents in variable
+% Coefficents.
+
+LSF = poly2lsf(Coefficents);
+LSF_hz= (LSF*new_fs)/(2*pi);% LSF's in Hz
+
+bz = Coefficents(end:-1:1);
+
+az = [Coefficents 0];
+bz = [0 bz];
+Pz = az+bz;
+Qz = az-bz;
+
+figure,zplane(Pz,Qz);legend('Roots of P(Z)','Roots of Q(Z)');title('Roots of P(z) & Q(z) of digit one Frame 4');
+
+b = [1];
+[h,freq]=freqz(b,az,4000,new_fs);
+h = 20*log10(h);
+value_lsf=h(ceil(LSF_hz));
+ 
+figure;plot(freq,h,'k');hold on;
+stem(LSF_hz,value_lsf,'k');
+xlabel('Frequency in Hz');
+ylabel('Log-Magnitude in dB of digit four');
+title('Log-Magnitude in dB & LSFs of digit one Frame 4');
+
